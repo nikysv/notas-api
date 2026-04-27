@@ -72,8 +72,13 @@ export default class NoteController {
   deleteNote = async (req, res) => {
     const { id } = req.params;
     const currentUserId = req.user.id;
+    const currentUserRole = req.user.role;
     try {
-      const result = await this.noteService.deleteNote(id, currentUserId);
+      const result = await this.noteService.deleteNote(
+        id,
+        currentUserId,
+        currentUserRole,
+      );
       res.status(200).json(result);
     } catch (error) {
       this.handleError(res, error);

@@ -41,10 +41,13 @@ export default class NoteService {
     return updatedNote;
   }
 
-  async deleteNote(id, currentUserId) {
+  async deleteNote(id, currentUserId, currentUserRole) {
     const note = await this.noteRepository.findById(id);
     if (!note) throw new Error("Note not found");
-    if (note.userId !== currentUserId) {
+    const isOwner = note.userId === currentUserId;
+    const isAdmin = currentUserRole === "admin";
+
+    if (!isOwner && !isAdmin) {
       throw new Error("Unauthorized: You can only delete your own notes");
     }
 
