@@ -63,6 +63,63 @@ export default class NoteController {
     return res.status(500).json({ error: message });
   };
 
+  /**
+   * @openapi
+   * /api/v1/notes:
+   *   post:
+   *     tags:
+   *       - Notes
+   *     summary: Crear una nota
+   *     description: Crea una nota del usuario autenticado. Soporta subida opcional de imagen en el campo image.
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         multipart/form-data:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - title
+   *               - content
+   *             properties:
+   *               title:
+   *                 type: string
+   *                 example: Mi nota
+   *               content:
+   *                 type: string
+   *                 example: Contenido de la nota
+   *               isPrivate:
+   *                 type: boolean
+   *                 example: false
+   *               password:
+   *                 type: string
+   *                 nullable: true
+   *               image:
+   *                 type: string
+   *                 format: binary
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/NoteRequest'
+   *     responses:
+   *       201:
+   *         description: Nota creada correctamente
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   $ref: '#/components/schemas/NoteResponse'
+   *                 _links:
+   *                   type: object
+   *       400:
+   *         description: Datos invalidos
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
   createNote = async (req, res) => {
     const data = req.body;
     if (req.file) data.imageUrl = "/uploads/" + req.file.filename;
@@ -78,6 +135,62 @@ export default class NoteController {
     }
   };
 
+  /**
+   * @openapi
+   * /api/v1/notes:
+   *   get:
+   *     tags:
+   *       - Notes
+   *     summary: Listar notas del usuario autenticado
+   *     description: Retorna las notas con paginacion, filtro por texto y ordenamiento.
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           default: 1
+   *         description: Numero de pagina
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 10
+   *         description: Elementos por pagina
+   *       - in: query
+   *         name: q
+   *         schema:
+   *           type: string
+   *         description: Texto a buscar en titulo o contenido
+   *       - in: query
+   *         name: sortBy
+   *         schema:
+   *           type: string
+   *           enum: [id, title, createdAt, updatedAt]
+   *           default: createdAt
+   *         description: Campo de ordenamiento
+   *       - in: query
+   *         name: order
+   *         schema:
+   *           type: string
+   *           enum: [asc, desc]
+   *           default: desc
+   *         description: Direccion del ordenamiento
+   *     responses:
+   *       200:
+   *         description: Lista de notas
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/NoteCollectionResponse'
+   *       401:
+   *         description: Token invalido o ausente
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
   getNotesByUserId = async (req, res) => {
     const userId = req.user.id;
     const {
@@ -121,6 +234,48 @@ export default class NoteController {
     }
   };
 
+  /**
+   * @openapi
+   * /api/v1/notes/{id}:
+   *   get:
+   *     tags:
+   *       - Notes
+   *     summary: Obtener una nota por ID
+   *     description: Devuelve una nota solo si pertenece al usuario autenticado.
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Identificador de la nota
+   *     responses:
+   *       200:
+   *         description: Nota encontrada
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   $ref: '#/components/schemas/NoteResponse'
+   *                 _links:
+   *                   type: object
+   *       403:
+   *         description: Sin permisos sobre la nota
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *       404:
+   *         description: Nota no encontrada
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
   getNoteById = async (req, res) => {
     const { id } = req.params;
     const currentUserId = req.user.id;
@@ -136,6 +291,62 @@ export default class NoteController {
     }
   };
 
+  /**
+   * @openapi
+   * /api/v1/notes/{id}:
+   *   put:
+   *     tags:
+   *       - Notes
+   *     summary: Actualizar una nota
+   *     description: Actualiza una nota propia. Soporta imagen opcional en el campo image.
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         multipart/form-data:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               title:
+   *                 type: string
+   *               content:
+   *                 type: string
+   *               isPrivate:
+   *                 type: boolean
+   *               password:
+   *                 type: string
+   *               image:
+   *                 type: string
+   *                 format: binary
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/NoteRequest'
+   *     responses:
+   *       200:
+   *         description: Nota actualizada
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   $ref: '#/components/schemas/NoteResponse'
+   *                 _links:
+   *                   type: object
+   *       403:
+   *         description: Sin permisos
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
   updateNote = async (req, res) => {
     const { id } = req.params;
     const data = req.body;
@@ -153,6 +364,36 @@ export default class NoteController {
     }
   };
 
+  /**
+   * @openapi
+   * /api/v1/notes/{id}:
+   *   delete:
+   *     tags:
+   *       - Notes
+   *     summary: Eliminar una nota
+   *     description: Solo el propietario o un usuario admin puede eliminar la nota.
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Nota eliminada
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/DeleteResponse'
+   *       403:
+   *         description: Permisos insuficientes
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
   deleteNote = async (req, res) => {
     const { id } = req.params;
     const currentUserId = req.user.id;
@@ -169,6 +410,48 @@ export default class NoteController {
     }
   };
 
+  /**
+   * @openapi
+   * /api/v1/notes/{id}/share:
+   *   post:
+   *     tags:
+   *       - Notes
+   *     summary: Compartir una nota por correo
+   *     description: Envía la nota por correo al destinatario indicado.
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/ShareNoteRequest'
+   *     responses:
+   *       200:
+   *         description: Correo enviado
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ShareResponse'
+   *       400:
+   *         description: Falta el correo destino
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *       403:
+   *         description: Sin permisos para compartir la nota
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   */
   shareNote = async (req, res) => {
     const { id } = req.params;
     const { email } = req.body;
