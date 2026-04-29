@@ -3,6 +3,48 @@ export default class NoteController {
     this.noteService = noteService;
   }
 
+  buildAbsoluteUrl = (req, path) =>
+    `${req.protocol}://${req.get("host")}${path}`;
+
+  buildNoteLinks = (req, noteId) => ({
+    self: this.buildAbsoluteUrl(req, `${req.baseUrl}/${noteId}`),
+    update: this.buildAbsoluteUrl(req, `${req.baseUrl}/${noteId}`),
+    delete: this.buildAbsoluteUrl(req, `${req.baseUrl}/${noteId}`),
+    share: this.buildAbsoluteUrl(req, `${req.baseUrl}/${noteId}/share`),
+    collection: this.buildAbsoluteUrl(req, `${req.baseUrl}`),
+  });
+
+  decorateNote = (req, note) => ({
+    ...note,
+    _links: this.buildNoteLinks(req, note.id),
+  });
+
+  buildCollectionLinks = (req, query, page, totalPages) => {
+    const current = new URL(this.buildAbsoluteUrl(req, req.baseUrl));
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") {
+        current.searchParams.set(key, value);
+      }
+    });
+
+    const links = {
+      self: current.toString(),
+      create: this.buildAbsoluteUrl(req, req.baseUrl),
+    };
+
+    if (page > 1) {
+      current.searchParams.set("page", String(page - 1));
+      links.prev = current.toString();
+    }
+
+    if (page < totalPages) {
+      current.searchParams.set("page", String(page + 1));
+      links.next = current.toString();
+    }
+
+    return links;
+  };
+
   handleError = (res, error) => {
     const message = error.message || "Error interno del servidor";
 
@@ -27,7 +69,10 @@ export default class NoteController {
     data.userId = req.user.id;
     try {
       const note = await this.noteService.createNote(data);
-      res.status(201).json(note); // 201 Created
+      res.status(201).json({
+        data: this.decorateNote(req, note),
+        _links: this.buildNoteLinks(req, note.id),
+      });
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
@@ -35,9 +80,42 @@ export default class NoteController {
 
   getNotesByUserId = async (req, res) => {
     const userId = req.user.id;
+    const {
+      page = "1",
+      limit = "10",
+      q,
+      sortBy = "createdAt",
+      order = "desc",
+    } = req.query;
     try {
-      const notes = await this.noteService.getNotesByUserId(userId);
-      res.status(200).json(notes); // 200 OK
+      const result = await this.noteService.getNotesByUserId(userId, {
+        page,
+        limit,
+        q,
+        sortBy,
+        order,
+      });
+      const normalizedPage = Math.max(Number.parseInt(page, 10) || 1, 1);
+      const normalizedLimit = Math.min(
+        Math.max(Number.parseInt(limit, 10) || 10, 1),
+        100,
+      );
+      const payload = this.noteService.buildNoteCollectionResult(
+        result,
+        normalizedPage,
+        normalizedLimit,
+      );
+
+      res.status(200).json({
+        ...payload,
+        data: payload.data.map((note) => this.decorateNote(req, note)),
+        _links: this.buildCollectionLinks(
+          req,
+          { page: normalizedPage, limit: normalizedLimit, q, sortBy, order },
+          normalizedPage,
+          payload.meta.totalPages,
+        ),
+      });
     } catch (error) {
       this.handleError(res, error);
     }
@@ -49,7 +127,10 @@ export default class NoteController {
 
     try {
       const note = await this.noteService.getNoteById(id, currentUserId);
-      res.status(200).json(note);
+      res.status(200).json({
+        data: this.decorateNote(req, note),
+        _links: this.buildNoteLinks(req, note.id),
+      });
     } catch (error) {
       this.handleError(res, error);
     }
@@ -63,7 +144,10 @@ export default class NoteController {
 
     try {
       const note = await this.noteService.updateNote(id, data, currentUserId);
-      res.status(200).json(note);
+      res.status(200).json({
+        data: this.decorateNote(req, note),
+        _links: this.buildNoteLinks(req, note.id),
+      });
     } catch (error) {
       this.handleError(res, error);
     }

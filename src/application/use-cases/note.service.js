@@ -7,6 +7,21 @@ export default class NoteService {
     this.mailService = mailService;
   }
 
+  buildNoteCollectionResult(result, page, limit) {
+    const total = result.count;
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+    return {
+      data: result.rows,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
+  }
+
   async getNoteById(id, currentUserId) {
     const note = await this.noteRepository.findById(id);
     if (!note) throw new Error("Note not found");
@@ -25,8 +40,8 @@ export default class NoteService {
     return await this.noteRepository.save(note);
   }
 
-  async getNotesByUserId(userId) {
-    return await this.noteRepository.findByUserId(userId);
+  async getNotesByUserId(userId, options = {}) {
+    return await this.noteRepository.findByUserId(userId, options);
   }
 
   async updateNote(id, data, currentUserId) {
